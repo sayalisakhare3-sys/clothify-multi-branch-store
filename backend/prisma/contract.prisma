@@ -1,0 +1,240 @@
+// use prisma-next
+
+// =====================================================
+// ENUMS
+// =====================================================
+
+enum UserRole {
+  @@type("pg/text@1")
+
+  OWNER
+  MANAGER
+  CASHIER
+}
+
+enum PaymentMethod {
+  @@type("pg/text@1")
+
+  CASH
+  CARD
+  UPI
+  OTHER
+}
+
+enum SaleStatus {
+  @@type("pg/text@1")
+
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+
+// =====================================================
+// USER
+// =====================================================
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+
+  role      UserRole @default(CASHIER)
+
+  branchId  Int?
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+
+  sales     Sale[]   @relation("CashierSales")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+
+// =====================================================
+// BRANCH
+// =====================================================
+
+model Branch {
+  id        Int      @id @default(autoincrement())
+  name      String
+  city      String
+  address   String?
+  phone     String?
+
+  isActive  Boolean  @default(true)
+
+  users     User[]
+  inventory Inventory[]
+  sales     Sale[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+
+// =====================================================
+// CATEGORY
+// =====================================================
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+
+  products    Product[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt DateTime
+}
+
+
+// =====================================================
+// PRODUCT
+// =====================================================
+
+model Product {
+  id          Int              @id @default(autoincrement())
+  name        String
+  sku         String           @unique
+  description String?
+
+  categoryId  Int
+  category    Category         @relation(fields: [categoryId], references: [id])
+
+  variants    ProductVariant[]
+
+  createdAt   DateTime         @default(now())
+  updatedAt DateTime
+}
+
+
+// =====================================================
+// PRODUCT VARIANT
+// =====================================================
+
+model ProductVariant {
+  id          Int          @id @default(autoincrement())
+
+  productId   Int
+  product     Product      @relation(fields: [productId], references: [id])
+
+  size        String
+  color       String
+
+  sku         String       @unique
+
+  price       Float
+  costPrice   Float?
+
+  isActive    Boolean      @default(true)
+
+  inventory   Inventory[]
+  saleItems   SaleItem[]
+
+  createdAt   DateTime     @default(now())
+  updatedAt DateTime
+
+  @@unique([productId, size, color])
+}
+
+
+// =====================================================
+// INVENTORY
+// =====================================================
+
+model Inventory {
+  id            Int            @id @default(autoincrement())
+
+  branchId      Int
+  branch        Branch         @relation(fields: [branchId], references: [id])
+
+  variantId     Int
+  variant       ProductVariant @relation(fields: [variantId], references: [id])
+
+  quantity      Int            @default(0)
+  reorderLevel  Int            @default(5)
+
+  createdAt     DateTime       @default(now())
+  updatedAt DateTime
+
+  @@unique([branchId, variantId])
+}
+
+
+// =====================================================
+// CUSTOMER
+// =====================================================
+
+model Customer {
+  id          Int      @id @default(autoincrement())
+
+  name        String
+  phone       String?
+  email       String?
+  address     String?
+
+  sales       Sale[]
+
+  createdAt   DateTime @default(now())
+  updatedAt DateTime
+}
+
+
+// =====================================================
+// SALE
+// =====================================================
+
+model Sale {
+  id             Int           @id @default(autoincrement())
+
+  invoiceNumber  String        @unique
+
+  branchId       Int
+  branch         Branch        @relation(fields: [branchId], references: [id])
+
+  cashierId      Int
+  cashier        User          @relation("CashierSales", fields: [cashierId], references: [id])
+
+  customerId     Int?
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+
+  subtotal       Float
+  discount       Float         @default(0)
+  tax            Float         @default(0)
+  total          Float
+
+  paymentMethod  PaymentMethod
+  status         SaleStatus    @default(COMPLETED)
+
+  items          SaleItem[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt DateTime
+}
+
+
+// =====================================================
+// SALE ITEM
+// =====================================================
+
+model SaleItem {
+  id          Int            @id @default(autoincrement())
+
+  saleId      Int
+  sale        Sale           @relation(fields: [saleId], references: [id])
+
+  variantId   Int
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+
+  quantity    Int
+  unitPrice   Float
+  discount    Float          @default(0)
+  total       Float
+
+  createdAt   DateTime       @default(now())
+
+  @@index([saleId])
+  @@index([variantId])
+}

@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(CASHIER)
+  branchId  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]   @relation("CashierSales")
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+}
+
+model Branch {
+  id        Int         @id @default(autoincrement())
+  name      String
+  city      String
+  address   String?
+  phone     String?
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  inventory Inventory[]
+  sales     Sale[]
+  users     User[]
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id          Int              @id @default(autoincrement())
+  name        String
+  sku         String           @unique
+  description String?
+  categoryId  Int
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  category    Category         @relation(fields: [categoryId], references: [id])
+  variants    ProductVariant[]
+}
+
+model ProductVariant {
+  id        Int         @id @default(autoincrement())
+  productId Int
+  size      String
+  color     String
+  sku       String      @unique
+  price     Float
+  costPrice Float?
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  inventory Inventory[]
+  product   Product     @relation(fields: [productId], references: [id])
+  saleItems SaleItem[]
+
+  @@unique([productId, size, color])
+}
+
+model Inventory {
+  id           Int            @id @default(autoincrement())
+  branchId     Int
+  variantId    Int
+  quantity     Int            @default(0)
+  reorderLevel Int            @default(5)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  branch       Branch         @relation(fields: [branchId], references: [id])
+  variant      ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([branchId, variantId])
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
+}
+
+model Sale {
+  id            Int           @id @default(autoincrement())
+  invoiceNumber String        @unique
+  branchId      Int
+  cashierId     Int
+  customerId    Int?
+  subtotal      Float
+  discount      Float         @default(0)
+  tax           Float         @default(0)
+  total         Float
+  paymentMethod PaymentMethod
+  status        SaleStatus    @default(COMPLETED)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  branch        Branch        @relation(fields: [branchId], references: [id])
+  cashier       User          @relation("CashierSales", fields: [cashierId], references: [id])
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  items         SaleItem[]
+  exchangeFor   SaleReturn?   @relation("ReplacementSale")
+  returns       SaleReturn[]  @relation("OriginalSale")
+}
+
+model SaleItem {
+  id        Int              @id @default(autoincrement())
+  saleId    Int
+  variantId Int
+  quantity  Int
+  unitPrice Float
+  discount  Float            @default(0)
+  total     Float
+  createdAt DateTime         @default(now())
+  sale      Sale             @relation(fields: [saleId], references: [id])
+  variant   ProductVariant   @relation(fields: [variantId], references: [id])
+  returns   SaleReturnItem[]
+
+  @@index([saleId])
+  @@index([variantId])
+}
+
+model SaleReturn {
+  id                Int              @id @default(autoincrement())
+  saleId            Int
+  replacementSaleId Int?             @unique
+  type              ReturnType
+  refundAmount      Float            @default(0)
+  amountDue         Float            @default(0)
+  reason            String?
+  createdAt         DateTime         @default(now())
+  replacementSale   Sale?            @relation("ReplacementSale", fields: [replacementSaleId], references: [id])
+  sale              Sale             @relation("OriginalSale", fields: [saleId], references: [id])
+  items             SaleReturnItem[]
+
+  @@index([saleId])
+}
+
+model SaleReturnItem {
+  id           Int        @id @default(autoincrement())
+  returnId     Int
+  saleItemId   Int
+  quantity     Int
+  refundAmount Float
+  createdAt    DateTime   @default(now())
+  saleReturn   SaleReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  saleItem     SaleItem   @relation(fields: [saleItemId], references: [id])
+
+  @@unique([returnId, saleItemId])
+  @@index([saleItemId])
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  CASHIER
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  OTHER
+}
+
+enum SaleStatus {
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum ReturnType {
+  RETURN
+  EXCHANGE
+}

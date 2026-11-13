@@ -70,7 +70,7 @@ model Branch {
   sales     Sale[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @default(now())
 }
 
 
@@ -86,7 +86,7 @@ model Category {
   products    Product[]
 
   createdAt   DateTime  @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @default(now())
 }
 
 
@@ -106,7 +106,7 @@ model Product {
   variants    ProductVariant[]
 
   createdAt   DateTime         @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @default(now())
 }
 
 
@@ -134,7 +134,7 @@ model ProductVariant {
   saleItems   SaleItem[]
 
   createdAt   DateTime     @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @default(now())
 
   @@unique([productId, size, color])
 }
@@ -157,8 +157,7 @@ model Inventory {
   reorderLevel  Int            @default(5)
 
   createdAt     DateTime       @default(now())
-  updatedAt DateTime
-
+  updatedAt DateTime @default(now())
   @@unique([branchId, variantId])
 }
 
